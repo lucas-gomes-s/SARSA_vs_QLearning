@@ -2,7 +2,7 @@ import gymnasium as gym
 from wrappers import DiscreteObservationWrapper
 import numpy as np
 
-
+# Agent that uses only 2 observation variables instead of 4
 class Agent:
     def __init__(
         self,
@@ -11,7 +11,7 @@ class Agent:
         learning_rate=0.1,
         exploration_rate=0.05,
         number_of_episodes=25000,
-        number_of_steps=500,
+        number_of_steps=1000,
         exploration='constant',
     ):
         self.env = DiscreteObservationWrapper(
@@ -20,8 +20,6 @@ class Agent:
         )
         self.Q = np.zeros(
             (
-                space_dimensions[0],
-                space_dimensions[1],
                 space_dimensions[2],
                 space_dimensions[3],
                 2,
@@ -32,17 +30,14 @@ class Agent:
         self.exploration_rate = self.eps = exploration_rate
         self.number_of_episodes = number_of_episodes
         self.number_of_steps = number_of_steps
-        self.space_dimensions = space_dimensions
         self.results = []
         self.explored = 0
+        # self.success = 0
+        self.space_dimensions = space_dimensions
         self.exploration = exploration
 
     def greedy_policy(self, current_state):
-        return np.argmax(
-            self.Q[current_state[0]][current_state[1]][current_state[2]][
-                current_state[3]
-            ]
-        )
+        return np.argmax(self.Q[current_state[2]][current_state[3]])
 
     def eps_greedy_policy(self, current_state):
         if np.random.random() < self.eps:
@@ -54,7 +49,7 @@ class Agent:
         if self.exploration == 'constant_decrease':
             self.eps -= self.exploration_rate / self.number_of_episodes
         if self.exploration == 'episode':
-            self.apha = 1 / (episode + 1)
+            self.eps = 1 / (episode + 1)
 
     def update_Q(
         self,
@@ -64,15 +59,11 @@ class Agent:
         new_state,
         new_action,
     ):
-        current_Q = self.Q[current_state[0]][current_state[1]][
-            current_state[2]
-        ][current_state[3]][current_action]
-        new_Q = self.Q[new_state[0]][new_state[1]][new_state[2]][new_state[3]][
-            new_action
-        ]
-        self.Q[current_state[0]][current_state[1]][current_state[2]][
-            current_state[3]
-        ][current_action] = current_Q + self.learning_rate * (
+        current_Q = self.Q[current_state[2]][current_state[3]][current_action]
+        new_Q = self.Q[new_state[2]][new_state[3]][new_action]
+        self.Q[current_state[2]][current_state[3]][
+            current_action
+        ] = current_Q + self.learning_rate * (
             current_reward + self.discount_factor * new_Q - current_Q
         )
 
@@ -82,7 +73,6 @@ class Agent:
             state, info = self.env.reset()
             self.explored = 0
             self.decrease_eps(episode)
-            # self.decrease_eps_episode(episode)
             for step in range(self.number_of_steps):
                 action = self.eps_greedy_policy(state)
                 (
@@ -109,7 +99,7 @@ class Agent:
             if episode == self.number_of_episodes - 1:
                 results = np.array(self.results)
                 np.savetxt(
-                    f'./[Q][{self.learning_rate}][{self.exploration_rate}]{str(self.space_dimensions)}.csv',
+                    f'./[Q][{self.learning_rate}][{self.exploration_rate}]{str(self.space_dimensions)}[{self.discount_factor}].csv',
                     results,
                     delimiter=',',
                     fmt='%1g',
@@ -148,7 +138,7 @@ class Agent:
             if episode == self.number_of_episodes - 1:
                 results = np.array(self.results)
                 np.savetxt(
-                    f'./Sarsa{self.learning_rate}.csv',
+                    f'./[SARSA][{self.learning_rate}][{self.exploration_rate}]{str(self.space_dimensions)}[{self.discount_factor}].csv',
                     results,
                     delimiter=',',
                     fmt='%1g',
